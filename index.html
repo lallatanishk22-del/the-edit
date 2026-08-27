@@ -201,11 +201,18 @@
   }
 
   #video .frame,#worldforge .frame{width:100%;height:min(56vw,560px);}
-  .video-grid{display:grid;grid-template-columns:1.5fr 1fr;grid-template-rows:1fr 1fr;gap:16px;height:min(60vw,620px);}
-  .video-grid .frame:first-child{grid-row:1 / 3;}
-  .video-grid .frame{height:100%;}
-  @media (max-width:900px){.video-grid{grid-template-columns:1fr;grid-template-rows:auto;height:auto;}
-    .video-grid .frame{height:60vw;}}
+  .video-stack{display:flex;flex-direction:column;gap:16px;}
+  .video-stack .frame.primary{width:100%;height:min(52vw,660px);}
+  .video-stack .frame.secondary{width:340px;height:191px;}
+  @media (max-width:900px){.video-stack .frame.primary{height:60vw;}.video-stack .frame.secondary{width:100%;height:56vw;}}
+  .sound-badge{
+    position:absolute;bottom:12px;right:12px;
+    font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;
+    color:var(--text);background:rgba(5,5,5,0.7);border:1px solid var(--accent);
+    padding:4px 10px;border-radius:20px;pointer-events:none;
+    display:flex;align-items:center;gap:6px;
+  }
+  .sound-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent);}
   #nike .frame{height:min(52vw,620px);}
   #foo .frame{height:min(58vw,700px);}
   .pebbles-media,.nexus-media{display:grid;grid-template-columns:1fr 1.6fr;gap:24px;}
@@ -315,29 +322,23 @@
   <section id="video" data-name="VIDEO EDITING" data-cursor="PLAY">
     <div class="section-inner reveal">
       <div class="proj-num">01 / VIDEO EDITING</div>
-      <div class="label-muted" style="margin-bottom:20px;">THREE EDITS, THREE REGISTERS</div>
+      <div class="label-muted" style="margin-bottom:20px;">NEXUS CONVERSATIONS — FOUNDER SERIES</div>
       <p class="proj-desc" style="margin-bottom:40px;">STORYTELLING THROUGH<br>RHYTHM, PACING AND<br>VISUAL EMOTION.</p>
-      <div class="video-grid">
-        <div class="frame">
-          <video class="loop-video" muted loop playsinline preload="metadata" aria-label="Roopkala Heritage store shoot edit">
-            <source src="videos/roopkala.mp4" type="video/mp4">
-          </video>
-          <div class="mute-badge">MUTED · ROOPKALA HERITAGE</div>
-        </div>
-        <div class="frame">
-          <video class="loop-video" muted loop playsinline preload="metadata" aria-label="Nexus Conversations founder interview with Sandeep Kowdley">
+      <div class="video-stack">
+        <div class="frame primary">
+          <video class="loop-video sound-video" id="nexusVideo" loop playsinline preload="metadata" aria-label="Nexus Conversations founder interview with Sandeep Kowdley, Cofounder of Liquidnitro Games">
             <source src="videos/nexus.mp4" type="video/mp4">
           </video>
-          <div class="mute-badge">MUTED · NEXUS CONVERSATIONS</div>
+          <div class="sound-badge" id="soundBadge">SOUND ON — CLICK ANYWHERE TO ENABLE</div>
         </div>
-        <div class="frame">
+        <div class="frame secondary">
           <video class="loop-video" muted loop playsinline preload="metadata" aria-label="Guru Gaurangadas social edit">
             <source src="videos/ggd.mp4" type="video/mp4">
           </video>
           <div class="mute-badge">MUTED · GURU GAURANGADAS</div>
         </div>
       </div>
-      <div class="frame-caption">SHORT LOOPS FROM THE EDITS — FULL CUTS AVAILABLE ON REQUEST</div>
+      <div class="frame-caption">FULL CUTS AVAILABLE ON REQUEST</div>
     </div>
   </section>
 
@@ -532,19 +533,45 @@
 
   // scroll-triggered video playback — videos run only while visible
   var videos = Array.prototype.slice.call(document.querySelectorAll('.loop-video'));
+  var soundBadge = document.getElementById('soundBadge');
+  var audioUnlocked = false;
+
+  function tryPlay(v){
+    var p = v.play();
+    if (p && p.catch) p.catch(function(){ /* blocked until gesture */ });
+  }
+
   if ('IntersectionObserver' in window && videos.length){
     var vio = new IntersectionObserver(function(entries){
       entries.forEach(function(e){
         var v = e.target;
-        if (e.isIntersecting){
-          var p = v.play();
-          if (p && p.catch) p.catch(function(){});
-        } else {
-          v.pause();
-        }
+        if (e.isIntersecting){ tryPlay(v); } else { v.pause(); }
       });
     }, {threshold:0.35});
     videos.forEach(function(v){ vio.observe(v); });
+  }
+
+  // Browsers block autoplay-with-sound until the visitor interacts once —
+  // this is a platform policy, not something a page can opt out of.
+  // We start the Nexus video muted-by-necessity, then unmute the instant
+  // the first click/tap/key happens anywhere on the page.
+  var soundVideo = document.getElementById('nexusVideo');
+  if (soundVideo){
+    soundVideo.muted = true; // required for the initial silent autoplay to be allowed at all
+    function unlockAudio(){
+      if (audioUnlocked) return;
+      audioUnlocked = true;
+      soundVideo.muted = false;
+      soundVideo.volume = 1;
+      tryPlay(soundVideo);
+      if (soundBadge) soundBadge.remove();
+      document.removeEventListener('click', unlockAudio);
+      document.removeEventListener('touchstart', unlockAudio);
+      document.removeEventListener('keydown', unlockAudio);
+    }
+    document.addEventListener('click', unlockAudio, {once:true});
+    document.addEventListener('touchstart', unlockAudio, {once:true});
+    document.addEventListener('keydown', unlockAudio, {once:true});
   }
 
   // cursor label
